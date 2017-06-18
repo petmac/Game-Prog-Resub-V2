@@ -162,10 +162,41 @@ void SceneApp::InitPlayer()
 	player_body_->SetUserData(&player_);
 }
 
+void SceneApp::InitGameObject(float startX, float startY, float halfWidth, float halfHeight)
+{
+	// setup the mesh for the gameObject
+	gameObject_.set_mesh(primitive_builder_->GetDefaultCubeMesh());
+
+	// create a physics body for the object
+	b2BodyDef gameObject_body_def;
+	gameObject_body_def.type = b2_dynamicBody;
+	gameObject_body_def.position = b2Vec2(startX, startY);
+
+	gameObject_body_ = world_->CreateBody(&gameObject_body_def);
+
+	// create the shape for the object
+	b2PolygonShape gameObject_shape;
+	gameObject_shape.SetAsBox(halfWidth, halfHeight);
+
+	// create the fixture
+	b2FixtureDef gameObject_fixture_def;
+	gameObject_fixture_def.shape = &gameObject_shape;
+	gameObject_fixture_def.density = 1.0f;
+
+	// create the fixture on the rigid body
+	gameObject_body_->CreateFixture(&gameObject_fixture_def);
+
+	// update visuals from simulation data
+	gameObject_.UpdateFromSimulation(gameObject_body_);
+
+	// create a connection between the rigid body and GameObject
+	gameObject_body_->SetUserData(&gameObject_);
+}
+
 void SceneApp::InitGround()
 {
 	// ground dimensions
-	gef::Vector4 ground_half_dimensions(5.0f, 0.1f, 50.0f);
+	gef::Vector4 ground_half_dimensions(50.0f, 0.1f, 50.0f);
 
 	// setup the mesh for the ground
 	ground_mesh_ = primitive_builder_->CreateBoxMesh(ground_half_dimensions);
@@ -243,6 +274,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 
 	// update object visuals from simulation data
 	player_.UpdateFromSimulation(player_body_);
+	gameObject_.UpdateFromSimulation(gameObject_body_);
 
 	// don't have to update the ground visuals as it is static
 
@@ -322,6 +354,11 @@ void SceneApp::FrontendUpdate(float frame_time)
 		game_state_ = MAP;
 		MapInit();
 	}
+
+	if (controller->buttons_pressed() & gef_SONY_CTRL_LEFT)
+	{
+
+	}
 	
 }
 
@@ -356,6 +393,15 @@ void SceneApp::FrontendRender()
 		gef::TJ_CENTRE,
 		"TO START");
 
+	// render "TO START" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f-100, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"\n\nSelect a Difficulty");
+
 
 	DrawHUD();
 	sprite_renderer_->End();
@@ -381,6 +427,7 @@ void SceneApp::MapInit()
 	world_ = new b2World(gravity);
 
 	InitPlayer();
+	InitGameObject(0.0f, 2.0f, 0.5f, 0.5f);
 	InitGround();
 
 	// load audio assets
@@ -427,8 +474,10 @@ void SceneApp::MapUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
 
-	//matrix to handle player transforms
+	// matrix to handle player transforms
 	gef::Matrix44 player_transform;
+	// matrix to handle gameObject transforms
+	gef::Matrix44 gameObject_transform;
 
 	// trigger a sound effect
 	if (audio_manager_)
@@ -455,19 +504,19 @@ void SceneApp::MapUpdate(float frame_time)
 			}
 		}
 	}
+	// End sound effect
 
+	// update the simulation
 	UpdateSimulation(frame_time);
 	
-	
-
-	
-
+	// get to start menu
 	if (controller->buttons_pressed() & gef_SONY_CTRL_START)
 	{
 		MapRelease();
 		game_state_ = FRONTEND;
 		FrontendInit();
 	}
+
 	if (controller->buttons_pressed() & gef_SONY_CTRL_SQUARE)
 	{
 		MapRelease();
@@ -509,9 +558,9 @@ void SceneApp::MapRender()
 	renderer_3d_->set_projection_matrix(projection_matrix);
 
 	// top down map view
-	gef::Vector4 camera_eye(0.0f, 10.0f, 0.0f);
+	gef::Vector4 camera_eye(10.0f, 10.0f, 10.0f);
 	gef::Vector4 camera_lookat(0.0f, 0.0f, 0.0f);
-	gef::Vector4 camera_up(0.0f, 0.0f, 1.0f);
+	gef::Vector4 camera_up(0.0f, 1.0f, 0.0f);
 	gef::Matrix44 view_matrix;
 	view_matrix.LookAt(camera_eye, camera_lookat, camera_up);
 	renderer_3d_->set_view_matrix(view_matrix);
@@ -521,8 +570,13 @@ void SceneApp::MapRender()
 	renderer_3d_->Begin();
 
 	// draw ground
+	renderer_3d_->set_override_material(&primitive_builder_->blue_material());
 	renderer_3d_->DrawMesh(ground_);
-
+	renderer_3d_->set_override_material(NULL);
+	// draw gameObject
+	renderer_3d_->set_override_material(&primitive_builder_->green_material());
+	renderer_3d_->DrawMesh(gameObject_);
+	renderer_3d_->set_override_material(NULL);
 	// draw player
 	renderer_3d_->set_override_material(&primitive_builder_->red_material());
 	renderer_3d_->DrawMesh(player_);

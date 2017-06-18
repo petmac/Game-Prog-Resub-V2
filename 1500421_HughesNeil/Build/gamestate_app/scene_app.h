@@ -39,6 +39,7 @@ public:
 	void Render();
 private:
 	void InitPlayer();
+	void InitGameObject(float, float, float, float);
 	void InitGround();
 	void InitFont();
 	void CleanUpFont();
@@ -73,7 +74,11 @@ private:
 	// player variables
 	Player player_;
 	b2Body* player_body_;
-	float playerX = 0.0f;
+	
+
+	// general game object variables, be it enemy or simple object
+	Player gameObject_;
+	b2Body* gameObject_body_;
 
 	// ground variables
 	gef::Mesh* ground_mesh_;
