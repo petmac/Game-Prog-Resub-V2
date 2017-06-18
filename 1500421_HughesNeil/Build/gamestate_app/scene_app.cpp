@@ -78,9 +78,9 @@ bool SceneApp::Update(float frame_time)
 			FrontendUpdate(frame_time);
 			break;
 		}
-		case MAP:
+		case JUMPER:
 		{
-			MapUpdate(frame_time);
+			JumperUpdate(frame_time);
 			break;
 		}
 		case TARGETING:
@@ -117,9 +117,9 @@ void SceneApp::Render()
 			break;
 		}
 		
-		case MAP:
+		case JUMPER:
 		{
-			MapRender();
+			JumperRender();
 			break;
 		}
 
@@ -169,7 +169,7 @@ void SceneApp::InitGameObject(float startX, float startY, float halfWidth, float
 
 	// create a physics body for the object
 	b2BodyDef gameObject_body_def;
-	gameObject_body_def.type = b2_dynamicBody;
+	gameObject_body_def.type = b2_staticBody;
 	gameObject_body_def.position = b2Vec2(startX, startY);
 
 	gameObject_body_ = world_->CreateBody(&gameObject_body_def);
@@ -205,7 +205,7 @@ void SceneApp::InitGround()
 	// create a physics body
 	b2BodyDef body_def;
 	body_def.type = b2_staticBody;
-	body_def.position = b2Vec2(0.0f, -0.1f);
+	body_def.position = b2Vec2(0.0f, -0.2f);
 
 	ground_body_ = world_->CreateBody(&body_def);
 
@@ -350,9 +350,9 @@ void SceneApp::FrontendUpdate(float frame_time)
 		// free up all resources use by the frontend 
 		FrontendRelease();
 		
-		// transition to MAP
-		game_state_ = MAP;
-		MapInit();
+		// transition to JUMPER
+		game_state_ =JUMPER;
+		JumperInit();
 	}
 
 	if (controller->buttons_pressed() & gef_SONY_CTRL_LEFT)
@@ -409,9 +409,9 @@ void SceneApp::FrontendRender()
 
 ///////////////////////////////////////////////// END FRONTEND STATE FUNCTIONS //////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////// MAP STATE FUNCTIONS ///////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////// JUMPER STATE FUNCTIONS ///////////////////////////////////////////////////////////////////////////////////////////
 
-void SceneApp::MapInit()
+void SceneApp::JumperInit()
 {
 	// create the renderer for draw 3D geometry
 	renderer_3d_ = gef::Renderer3D::Create(platform_);
@@ -427,7 +427,7 @@ void SceneApp::MapInit()
 	world_ = new b2World(gravity);
 
 	InitPlayer();
-	InitGameObject(0.0f, 2.0f, 0.5f, 0.5f);
+	InitGameObject(10.0f, 0.5f, 0.5f, 0.5f);
 	InitGround();
 
 	// load audio assets
@@ -444,7 +444,7 @@ void SceneApp::MapInit()
 	}
 }
 
-void SceneApp::MapRelease()
+void SceneApp::JumperRelease()
 {
 	// unload audio resources
 	if (audio_manager_)
@@ -470,7 +470,7 @@ void SceneApp::MapRelease()
 
 }
 
-void SceneApp::MapUpdate(float frame_time)
+void SceneApp::JumperUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
 
@@ -512,14 +512,14 @@ void SceneApp::MapUpdate(float frame_time)
 	// get to start menu
 	if (controller->buttons_pressed() & gef_SONY_CTRL_START)
 	{
-		MapRelease();
+		JumperRelease();
 		game_state_ = FRONTEND;
 		FrontendInit();
 	}
 
 	if (controller->buttons_pressed() & gef_SONY_CTRL_SQUARE)
 	{
-		MapRelease();
+		JumperRelease();
 		game_state_ = TARGETING;
 		TargetInit();
 	}
@@ -528,13 +528,13 @@ void SceneApp::MapUpdate(float frame_time)
 	if (controller->buttons_down() & gef_SONY_CTRL_RIGHT)
 	{
 		// effectively teleports the player 0.1 units to the right, while the right Dpad button is down
-		player_body_->SetTransform(b2Vec2((player_body_->GetPosition().x) - 0.1f, player_body_->GetPosition().y), 0);
+		player_body_->SetTransform(b2Vec2((player_body_->GetPosition().x) + 0.1f, player_body_->GetPosition().y), 0);
 		gef::DebugOut("RIGHT\n");
 	}
 	if (controller->buttons_down() & gef_SONY_CTRL_LEFT)
 	{
 		// effectively teleports the player 0.1 units to the left, while the left Dpad button is down
-		player_body_->SetTransform(b2Vec2((player_body_->GetPosition().x) + 0.1f, player_body_->GetPosition().y), 0);
+		player_body_->SetTransform(b2Vec2((player_body_->GetPosition().x) - 0.1f, player_body_->GetPosition().y), 0);
 		gef::DebugOut("LEFT\n");
 	}
 	if (controller->buttons_pressed() & gef_SONY_CTRL_UP)
@@ -544,9 +544,20 @@ void SceneApp::MapUpdate(float frame_time)
 		gef::DebugOut("UP\n");
 	}
 	// End Player Force inputs //
+
+	// effectively teleports the gameobject 0.1 units to the left, while the triangle button is down
+	gameObject_body_->SetTransform(b2Vec2((gameObject_body_->GetPosition().x) - 0.1f, gameObject_body_->GetPosition().y), 0);
+	
+	/*
+	if (controller->buttons_down() & gef_SONY_CTRL_CIRCLE)
+	{
+		// effectively teleports the gameobject 0.1 units to the right, while the circle button is down
+		gameObject_body_->SetTransform(b2Vec2((gameObject_body_->GetPosition().x) + 0.1f, gameObject_body_->GetPosition().y), 0);
+	}*/
+
 }
 
-void SceneApp::MapRender()
+void SceneApp::JumperRender()
 {
 	// setup camera
 
@@ -557,9 +568,9 @@ void SceneApp::MapRender()
 	projection_matrix = platform_.PerspectiveProjectionFov(fov, aspect_ratio, 0.1f, 100.0f);
 	renderer_3d_->set_projection_matrix(projection_matrix);
 
-	// top down map view
-	gef::Vector4 camera_eye(10.0f, 10.0f, 10.0f);
-	gef::Vector4 camera_lookat(0.0f, 0.0f, 0.0f);
+	// jumper camera view
+	gef::Vector4 camera_eye(3.0f, 6.0f, 10.0f);
+	gef::Vector4 camera_lookat(0.0f, 2.0f, 0.0f);
 	gef::Vector4 camera_up(0.0f, 1.0f, 0.0f);
 	gef::Matrix44 view_matrix;
 	view_matrix.LookAt(camera_eye, camera_lookat, camera_up);
@@ -570,15 +581,14 @@ void SceneApp::MapRender()
 	renderer_3d_->Begin();
 
 	// draw ground
-	renderer_3d_->set_override_material(&primitive_builder_->blue_material());
 	renderer_3d_->DrawMesh(ground_);
-	renderer_3d_->set_override_material(NULL);
+
 	// draw gameObject
-	renderer_3d_->set_override_material(&primitive_builder_->green_material());
+	renderer_3d_->set_override_material(&primitive_builder_->red_material());
 	renderer_3d_->DrawMesh(gameObject_);
 	renderer_3d_->set_override_material(NULL);
 	// draw player
-	renderer_3d_->set_override_material(&primitive_builder_->red_material());
+	renderer_3d_->set_override_material(&primitive_builder_->green_material());
 	renderer_3d_->DrawMesh(player_);
 	renderer_3d_->set_override_material(NULL);
 
@@ -590,7 +600,7 @@ void SceneApp::MapRender()
 	sprite_renderer_->End();
 }
 
-///////////////////////////////////////////////// END MAP STATE FUNCTIONS /////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////// END GAMEPLAY STATE FUNCTIONS /////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////// TARGETING STATE FUNCTIONS ///////////////////////////////////////////////////////////////
 
@@ -695,8 +705,8 @@ void SceneApp::TargetUpdate(float frame_time)
 	if (controller->buttons_pressed() & gef_SONY_CTRL_CROSS)
 	{
 		TargetRelease();
-		game_state_ = MAP;
-		MapInit();
+		game_state_ = JUMPER;
+		JumperInit();
 	}
 
 	// Player force inputs //

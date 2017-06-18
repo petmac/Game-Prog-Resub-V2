@@ -14,9 +14,8 @@
 enum GAMESTATE 
 {
 	FRONTEND,			// main menu
-	MAP,				// 1st game state, map screen
+	JUMPER,				// 1st game state, Jumper state
 	TARGETING,			// 2nd game state, targeting screen
-	WIN
 };
 
 // FRAMEWORK FORWARD DECLARATIONS
@@ -96,10 +95,10 @@ private:
 	void FrontendUpdate(float frame_time);
 	void FrontendRender();
 
-	void MapInit();
-	void MapRelease();
-	void MapUpdate(float frame_time);
-	void MapRender();
+	void JumperInit();
+	void JumperRelease();
+	void JumperUpdate(float frame_time);
+	void JumperRender();
 
 	void TargetInit();
 	void TargetRelease();
