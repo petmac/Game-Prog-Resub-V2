@@ -37,6 +37,9 @@ void SceneApp::Init()
 	// initialise audio manager
 	audio_manager_ = gef::AudioManager::Create();
 
+	// initialise the difficulty variable
+	difficulty = 1;
+
 	// set the initial state of the game state machine
 	game_state_ = FRONTEND;
 	FrontendInit();
@@ -104,9 +107,6 @@ bool SceneApp::Update(float frame_time)
 	return true;
 }
 
-
-
-
 void SceneApp::Render()
 {
 	switch (game_state_)
@@ -130,6 +130,7 @@ void SceneApp::Render()
 		}
 	}
 }
+
 
 void SceneApp::InitPlayer()
 {
@@ -351,13 +352,17 @@ void SceneApp::FrontendUpdate(float frame_time)
 		FrontendRelease();
 		
 		// transition to JUMPER
-		game_state_ =JUMPER;
+		game_state_ = JUMPER;
 		JumperInit();
 	}
 
 	if (controller->buttons_pressed() & gef_SONY_CTRL_LEFT)
 	{
-
+		difficulty--;
+	}
+	if (controller->buttons_pressed()& gef_SONY_CTRL_RIGHT)
+	{
+		difficulty++;
 	}
 	
 }
@@ -400,7 +405,7 @@ void SceneApp::FrontendRender()
 		1.0f,
 		0xffffffff,
 		gef::TJ_CENTRE,
-		"\n\nSelect a Difficulty");
+		"\n\nSelect a Difficulty (1 being easiest): %i", difficulty);
 
 
 	DrawHUD();
@@ -545,8 +550,8 @@ void SceneApp::JumperUpdate(float frame_time)
 	}
 	// End Player Force inputs //
 
-	// effectively teleports the gameobject 0.1 units to the left, while the triangle button is down
-	gameObject_body_->SetTransform(b2Vec2((gameObject_body_->GetPosition().x) - 0.1f, gameObject_body_->GetPosition().y), 0);
+	// effectively teleports the gameobject difficulty/10 units to the left
+	gameObject_body_->SetTransform(b2Vec2((gameObject_body_->GetPosition().x) - ((float)difficulty/10), gameObject_body_->GetPosition().y), 0);
 	
 	/*
 	if (controller->buttons_down() & gef_SONY_CTRL_CIRCLE)
@@ -569,7 +574,7 @@ void SceneApp::JumperRender()
 	renderer_3d_->set_projection_matrix(projection_matrix);
 
 	// jumper camera view
-	gef::Vector4 camera_eye(3.0f, 6.0f, 10.0f);
+	gef::Vector4 camera_eye(2.0f, 6.0f, 10.0f);
 	gef::Vector4 camera_lookat(0.0f, 2.0f, 0.0f);
 	gef::Vector4 camera_up(0.0f, 1.0f, 0.0f);
 	gef::Matrix44 view_matrix;
@@ -600,7 +605,9 @@ void SceneApp::JumperRender()
 	sprite_renderer_->End();
 }
 
-///////////////////////////////////////////////// END GAMEPLAY STATE FUNCTIONS /////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////// END JUMPER STATE FUNCTIONS /////////////////////////////////////////////////////////////////
+
+
 
 ///////////////////////////////////////////////// TARGETING STATE FUNCTIONS ///////////////////////////////////////////////////////////////
 

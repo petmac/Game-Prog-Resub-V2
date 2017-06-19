@@ -9,6 +9,7 @@
 #include <input/input_manager.h>
 #include <box2d/Box2D.h>
 #include "game_object.h"
+#include <vector>
 
 // enum for game states
 enum GAMESTATE 
@@ -88,6 +89,9 @@ private:
 	int sfx_id_;
 	int sfx_voice_id_;
 
+	// difficulty variable
+	unsigned int difficulty;
+
 	float fps_;
 
 	void FrontendInit();
@@ -99,7 +103,7 @@ private:
 	void JumperRelease();
 	void JumperUpdate(float frame_time);
 	void JumperRender();
-
+	
 	void TargetInit();
 	void TargetRelease();
 	void TargetUpdate(float frame_time);
