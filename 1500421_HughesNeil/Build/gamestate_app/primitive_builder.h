@@ -75,16 +75,23 @@ public:
 	inline const gef::Material& blue_material() const {
 		return blue_material_;
 	}
-
+	/// @brief Get the ground material.
+	/// @return The reference to the blue material.
+	inline const gef::Material& ground_material() const {
+		return ground_material_;
+	}
 protected:
 	gef::Platform& platform_;
 
 	gef::Mesh* default_cube_mesh_;
 	gef::Mesh* default_sphere_mesh_;
 
+	
+
 	gef::Material red_material_;
 	gef::Material blue_material_;
 	gef::Material green_material_;
+	gef::Material ground_material_;
 };
 
 #endif // _PRIMITIVE_BUILDER_H

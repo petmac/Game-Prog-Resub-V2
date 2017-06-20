@@ -225,7 +225,6 @@ void SceneApp::InitGround()
 	ground_.UpdateFromSimulation(ground_body_);
 }
 
-
 void SceneApp::InitFont()
 {
 	font_ = new gef::Font(platform_);
@@ -424,7 +423,10 @@ void SceneApp::JumperInit()
 	// initialise primitive builder to make create some 3D geometry easier
 	primitive_builder_ = new PrimitiveBuilder(platform_);
 
-
+	//Scroller_Bkgrd_ = CreateTextureFromPNG("Side_Scroller_Bkgrd.png", platform_);
+	Scroller_Bkgrd_ = CreateTextureFromPNG("clouds@2x.png", platform_);
+	//ground_texture_ = CreateTextureFromPNG("cartoon-stone-texture_1110-576.png", platform_);
+	
 	SetupLights();
 
 	// initialise the physics world
@@ -548,6 +550,12 @@ void SceneApp::JumperUpdate(float frame_time)
 		player_body_->ApplyLinearImpulse(b2Vec2(0, 10), player_body_->GetWorldCenter(), true);
 		gef::DebugOut("UP\n");
 	}
+	if (controller->buttons_pressed() & gef_SONY_CTRL_DOWN)
+	{
+		// Applies a force downwards to the player object, allowing the player to duck
+		player_body_->ApplyLinearImpulse(b2Vec2(0, -10), player_body_->GetWorldCenter(), true);
+		gef::DebugOut("UP\n");
+	}
 	// End Player Force inputs //
 
 	// effectively teleports the gameobject difficulty/10 units to the left
@@ -564,7 +572,18 @@ void SceneApp::JumperUpdate(float frame_time)
 
 void SceneApp::JumperRender()
 {
-	// setup camera
+	sprite_renderer_->Begin();
+
+	// Render wall texture
+	gef::Sprite wall;
+	wall.set_texture(Scroller_Bkgrd_);
+	wall.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f, -0.99f));
+	wall.set_height(640.0f);
+	wall.set_width(1136.0f);
+	sprite_renderer_->DrawSprite(wall);
+	sprite_renderer_->End();
+
+	// Setup camera
 
 	// projection
 	float fov = gef::DegToRad(45.0f);
@@ -574,19 +593,22 @@ void SceneApp::JumperRender()
 	renderer_3d_->set_projection_matrix(projection_matrix);
 
 	// jumper camera view
-	gef::Vector4 camera_eye(2.0f, 6.0f, 10.0f);
+	
+	gef::Vector4 camera_eye(0.0f, 2.0f, 10.0f); // Alternate Cam algle at 2, 6, 10
 	gef::Vector4 camera_lookat(0.0f, 2.0f, 0.0f);
 	gef::Vector4 camera_up(0.0f, 1.0f, 0.0f);
 	gef::Matrix44 view_matrix;
 	view_matrix.LookAt(camera_eye, camera_lookat, camera_up);
 	renderer_3d_->set_view_matrix(view_matrix);
+	// end camera setup
 
-
-	// draw 3d geometry
-	renderer_3d_->Begin();
+	// draw 3d geometry, but dont clear the frame buffer
+	renderer_3d_->Begin(false);
 
 	// draw ground
+	renderer_3d_->set_override_material(&primitive_builder_->ground_material());
 	renderer_3d_->DrawMesh(ground_);
+	renderer_3d_->set_override_material(NULL);
 
 	// draw gameObject
 	renderer_3d_->set_override_material(&primitive_builder_->red_material());
@@ -598,6 +620,7 @@ void SceneApp::JumperRender()
 	renderer_3d_->set_override_material(NULL);
 
 	renderer_3d_->End();
+	// end 3d drawing
 
 	// start drawing sprites, but don't clear the frame buffer
 	sprite_renderer_->Begin(false);

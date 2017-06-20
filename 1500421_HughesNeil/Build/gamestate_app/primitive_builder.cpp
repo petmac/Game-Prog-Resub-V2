@@ -35,10 +35,14 @@ void PrimitiveBuilder::Init()
 	default_cube_mesh_ = CreateBoxMesh(gef::Vector4(0.5f, 0.5f, 0.5f));
 	default_sphere_mesh_ = CreateSphereMesh(0.5f, 20, 20);
 
+
 	// create materials for basic colours
 	red_material_.set_colour(0xff0000ff);
 	blue_material_.set_colour(0xffff0000);
 	green_material_.set_colour(0xff00ff00);
+	ground_material_.set_colour(0x94A2A);
+
+
 }
 
 //

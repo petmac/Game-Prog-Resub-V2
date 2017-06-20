@@ -65,6 +65,10 @@ private:
 	//
 	// GAME DECLARATIONS
 	//
+
+	gef::Texture* Scroller_Bkgrd_;
+	gef::Texture* ground_texture_;
+
 	gef::Renderer3D* renderer_3d_;
 	PrimitiveBuilder* primitive_builder_;
 
