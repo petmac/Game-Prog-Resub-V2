@@ -7,8 +7,7 @@
 enum OBJECT_TYPE
 {
 	PLAYER,
-	ENEMY,
-	BULLET
+	WALL,
 };
 
 class GameObject : public gef::MeshInstance
@@ -29,5 +28,6 @@ public:
 	Player();
 	void DecrementHealth();
 };
+
 
 #endif // _GAME_OBJECT_H

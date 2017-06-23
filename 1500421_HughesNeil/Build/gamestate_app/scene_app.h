@@ -16,7 +16,7 @@ enum GAMESTATE
 {
 	FRONTEND,			// main menu
 	JUMPER,				// 1st game state, Jumper state
-	TARGETING,			// 2nd game state, targeting screen
+	GAMEOVER,			// 2nd game state, game over screen
 };
 
 // FRAMEWORK FORWARD DECLARATIONS
@@ -63,7 +63,12 @@ private:
 	gef::Texture* button_icon_;
 
 	//
-	// GAME DECLARATIONS
+	// GAMEOVER DECLARATIONS
+	//
+	gef::Texture* gameOverScreen;
+
+	//
+	// JUMPER DECLARATIONS
 	//
 
 	gef::Texture* Scroller_Bkgrd_;
@@ -108,10 +113,10 @@ private:
 	void JumperUpdate(float frame_time);
 	void JumperRender();
 	
-	void TargetInit();
-	void TargetRelease();
-	void TargetUpdate(float frame_time);
-	void TargetRender();
+	void GameOverInit();
+	void GameOverRelease();
+	void GameOverUpdate(float frame_time);
+	void GameOverRender();
 };
 
 #endif // _SCENE_APP_H

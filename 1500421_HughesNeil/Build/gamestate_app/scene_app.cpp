@@ -86,9 +86,9 @@ bool SceneApp::Update(float frame_time)
 			JumperUpdate(frame_time);
 			break;
 		}
-		case TARGETING:
+		case GAMEOVER:
 		{
-			TargetUpdate(frame_time);
+			GameOverUpdate(frame_time);
 			break;
 		}
 
@@ -123,9 +123,9 @@ void SceneApp::Render()
 			break;
 		}
 
-		case TARGETING:
+		case GAMEOVER:
 		{
-			TargetRender();
+			GameOverRender();
 			break;
 		}
 	}
@@ -475,6 +475,9 @@ void SceneApp::JumperRelease()
 	delete renderer_3d_;
 	renderer_3d_ = NULL;
 
+	delete Scroller_Bkgrd_;
+	Scroller_Bkgrd_ = NULL;
+
 }
 
 void SceneApp::JumperUpdate(float frame_time)
@@ -513,6 +516,47 @@ void SceneApp::JumperUpdate(float frame_time)
 	}
 	// End sound effect
 
+	// collision detection
+	// get the head of the contact list
+	b2Contact* contact = world_->GetContactList();
+	// get contact count
+	int contact_count = world_->GetContactCount();
+
+	for (int contact_num = 0; contact_num<contact_count; ++contact_num)
+	{
+		if (contact->IsTouching())
+		{
+			// get the colliding bodies
+			b2Body* bodyA = contact->GetFixtureA()->GetBody();
+			b2Body* bodyB = contact->GetFixtureB()->GetBody();
+
+			// DO COLLISION RESPONSE HERE
+			//end the game
+			/////////////////////////////////////ISSUES//////////////////////////////////////
+			//JumperRelease();
+			game_state_ = GAMEOVER;
+			GameOverInit();
+			//GameOverInit();
+			/*
+			if (bodyA->GetType() == b2_dynamicBody)
+			{
+				player_body_ = bodyA;
+				ground_body_ = bodyB;
+			}
+			else
+			{
+				ground_body_ = bodyA;
+				player_body_ = bodyB;
+			}
+			player_body_->ApplyForceToCenter(b2Vec2(0.0f, 200.0f), true);
+			*/
+		}
+
+		// Get next contact point
+		//contact = contact->GetNext();
+	}
+
+
 	// update the simulation
 	UpdateSimulation(frame_time);
 	
@@ -527,8 +571,8 @@ void SceneApp::JumperUpdate(float frame_time)
 	if (controller->buttons_pressed() & gef_SONY_CTRL_SQUARE)
 	{
 		JumperRelease();
-		game_state_ = TARGETING;
-		TargetInit();
+		game_state_ = GAMEOVER;
+		GameOverInit();
 	}
 
 	// Player force inputs //
@@ -630,175 +674,48 @@ void SceneApp::JumperRender()
 
 ///////////////////////////////////////////////// END JUMPER STATE FUNCTIONS /////////////////////////////////////////////////////////////////
 
+///////////////////////////////////////////////// GAMEOVER STATE FUNCTIONS ///////////////////////////////////////////////////////////////
 
-
-///////////////////////////////////////////////// TARGETING STATE FUNCTIONS ///////////////////////////////////////////////////////////////
-
-void SceneApp::TargetInit()
+void SceneApp::GameOverInit()
 {
-	// create the renderer for draw 3D geometry
-	renderer_3d_ = gef::Renderer3D::Create(platform_);
-
-	// initialise primitive builder to make create some 3D geometry easier
-	primitive_builder_ = new PrimitiveBuilder(platform_);
-
-
-	SetupLights();
-
-	// initialise the physics world
-	b2Vec2 gravity(0.0f, -9.81f);
-	world_ = new b2World(gravity);
-
-	InitPlayer();
-	InitGround();
-
-	// load audio assets
-	if (audio_manager_)
-	{
-		// load a sound effect
-		sfx_id_ = audio_manager_->LoadSample("box_collected.wav", platform_);
-
-		// load in music
-		audio_manager_->LoadMusic("music.wav", platform_);
-
-		// play music
-		audio_manager_->PlayMusic();
-	}
+	gameOverScreen = CreateTextureFromPNG("CloudGameOver.png", platform_);
 }
 
-void SceneApp::TargetRelease()
+void SceneApp::GameOverRelease()
 {
-	// unload audio resources
-	if (audio_manager_)
-	{
-		audio_manager_->StopMusic();
-		audio_manager_->UnloadAllSamples();
-		sfx_id_ = -1;
-		sfx_voice_id_ = -1;
-	}
-
-	// destroying the physics world also destroys all the objects within it
-	delete world_;
-	world_ = NULL;
-
-	delete ground_mesh_;
-	ground_mesh_ = NULL;
-
-	delete primitive_builder_;
-	primitive_builder_ = NULL;
-
-	delete renderer_3d_;
-	renderer_3d_ = NULL;
-
+	delete gameOverScreen;
+	gameOverScreen = NULL;
 }
 
-void SceneApp::TargetUpdate(float frame_time)
+void SceneApp::GameOverUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
 
-	// trigger a sound effect
-	if (audio_manager_)
+	if(controller->buttons_pressed() & gef_SONY_CTRL_START)
 	{
-		if (controller->buttons_pressed() & gef_SONY_CTRL_CROSS)
-		{
-			sfx_voice_id_ = audio_manager_->PlaySample(sfx_id_, true);
-
-			gef::VolumeInfo volume_info;
-			volume_info.volume = 0.5f;
-			volume_info.pan = -1.0f;
-
-			audio_manager_->SetSampleVoiceVolumeInfo(sfx_voice_id_, volume_info);
-
-			audio_manager_->SetSamplePitch(sfx_voice_id_, 1.5f);
-		}
-
-		if (controller->buttons_pressed() & gef_SONY_CTRL_TRIANGLE)
-		{
-			if (sfx_voice_id_ != -1)
-			{
-				audio_manager_->StopPlayingSampleVoice(sfx_voice_id_);
-				sfx_voice_id_ = -1;
-			}
-		}
-	}
-
-
-
-	UpdateSimulation(frame_time);
-
-	if (controller->buttons_pressed() & gef_SONY_CTRL_START)
-	{
-		TargetRelease();
+		// free up resources used by GAMEOVER
+		GameOverRelease();
 		game_state_ = FRONTEND;
 		FrontendInit();
 	}
-	if (controller->buttons_pressed() & gef_SONY_CTRL_CROSS)
-	{
-		TargetRelease();
-		game_state_ = JUMPER;
-		JumperInit();
-	}
 
-	// Player force inputs //
-	if (controller->buttons_down() & gef_SONY_CTRL_RIGHT)
-	{
-		// effectively teleports the player 0.1 units to the right, while the right Dpad button is down
-		player_body_->SetTransform(b2Vec2((player_body_->GetPosition().x) - 0.1f, player_body_->GetPosition().y), 0);
-		gef::DebugOut("RIGHT\n");
-	}
-	if (controller->buttons_down() & gef_SONY_CTRL_LEFT)
-	{
-		// effectively teleports the player 0.1 units to the left, while the left Dpad button is down
-		player_body_->SetTransform(b2Vec2((player_body_->GetPosition().x)+0.1f, player_body_->GetPosition().y), 0);
-		gef::DebugOut("LEFT\n");
-	}
-	if (controller->buttons_pressed() & gef_SONY_CTRL_UP)
-	{
-		// Applies a force upwards to the player object, allowing the player to jump
-		player_body_->ApplyLinearImpulse(b2Vec2(0, 10), player_body_->GetWorldCenter(), true);
-		gef::DebugOut("UP\n");
-	}
-	// End Player Force inputs //
 }
 
-void SceneApp::TargetRender()
+void SceneApp::GameOverRender()
 {
-	// setup camera
+	
+	sprite_renderer_->Begin();
 
-	// projection
-	float fov = gef::DegToRad(45.0f);
-	float aspect_ratio = (float)platform_.width() / (float)platform_.height();
-	gef::Matrix44 projection_matrix;
-	projection_matrix = platform_.PerspectiveProjectionFov(fov, aspect_ratio, 0.1f, 100.0f);
-	//projection_matrix = platform_.OrthographicFrustum(10, -10, 10, -10, -10, 0);
-	renderer_3d_->set_projection_matrix(projection_matrix);
-
-	// side on, targeting view
-	gef::Vector4 camera_eye(0.0f, 1.0f, -10.0f);
-	gef::Vector4 camera_lookat(0.0f, 0.0f, 0.0f);
-	gef::Vector4 camera_up(0.0f, 1.0f, 0.0f);
-	gef::Matrix44 view_matrix;
-	view_matrix.LookAt(camera_eye, camera_lookat, camera_up);
-	renderer_3d_->set_view_matrix(view_matrix);
-
-
-	// draw 3d geometry
-	renderer_3d_->Begin();
-
-	// draw ground
-	renderer_3d_->DrawMesh(ground_);
-
-	// draw player
-	renderer_3d_->set_override_material(&primitive_builder_->red_material());
-	renderer_3d_->DrawMesh(player_);
-	renderer_3d_->set_override_material(NULL);
-
-	renderer_3d_->End();
-
-	// start drawing sprites, but don't clear the frame buffer
-	sprite_renderer_->Begin(false);
-	DrawHUD();
+	// Render wall texture
+	gef::Sprite gameOverBkgrd;
+	gameOverBkgrd.set_texture(gameOverScreen);
+	gameOverBkgrd.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f, -0.99f));
+	gameOverBkgrd.set_height(640.0f);
+	gameOverBkgrd.set_width(1136.0f);
+	sprite_renderer_->DrawSprite(gameOverBkgrd);
 	sprite_renderer_->End();
+	
+	
 }
 
-///////////////////////////////////////////////// END TARGETING STATE FUNCTIONS ///////////////////////////////////////////////////////////////
+///////////////////////////////////////////////// END GAMEOVER STATE FUNCTIONS ///////////////////////////////////////////////////////////////
