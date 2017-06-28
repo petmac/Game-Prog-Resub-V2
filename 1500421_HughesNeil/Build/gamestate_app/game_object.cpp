@@ -32,6 +32,7 @@ void GameObject::MyCollisionResponse()
 Player::Player()
 {
 	set_type(PLAYER);
+
 }
 
 void Player::DecrementHealth()

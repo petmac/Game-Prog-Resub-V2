@@ -28,6 +28,7 @@ SceneApp::SceneApp(gef::Platform& platform) :
 
 void SceneApp::Init()
 {
+	srand(NULL);
 	sprite_renderer_ = gef::SpriteRenderer::Create(platform_);
 	InitFont();
 
@@ -37,8 +38,7 @@ void SceneApp::Init()
 	// initialise audio manager
 	audio_manager_ = gef::AudioManager::Create();
 
-	// initialise the difficulty variable
-	difficulty = 1;
+	
 
 	// set the initial state of the game state machine
 	game_state_ = FRONTEND;
@@ -140,7 +140,7 @@ void SceneApp::InitPlayer()
 	// create a physics body for the player
 	b2BodyDef player_body_def;
 	player_body_def.type = b2_dynamicBody;
-	player_body_def.position = b2Vec2(0.0f, 1.0f);
+	player_body_def.position = b2Vec2(0.0f, 3.0f);
 
 	player_body_ = world_->CreateBody(&player_body_def);
 
@@ -163,17 +163,19 @@ void SceneApp::InitPlayer()
 	player_body_->SetUserData(&player_);
 }
 
-void SceneApp::InitGameObject(float startX, float startY, float halfWidth, float halfHeight)
+void SceneApp::CreateObstacle(float startX, float startY, float halfWidth, float halfHeight)
 {
+
+	GameObject* newObstacle = new GameObject();
 	// setup the mesh for the gameObject
-	gameObject_.set_mesh(primitive_builder_->GetDefaultCubeMesh());
+	newObstacle->set_mesh(primitive_builder_->CreateBoxMesh(gef::Vector4(halfWidth, halfHeight, halfWidth)));
 
 	// create a physics body for the object
 	b2BodyDef gameObject_body_def;
 	gameObject_body_def.type = b2_staticBody;
 	gameObject_body_def.position = b2Vec2(startX, startY);
 
-	gameObject_body_ = world_->CreateBody(&gameObject_body_def);
+	b2Body* gameObject_body_ = world_->CreateBody(&gameObject_body_def);
 
 	// create the shape for the object
 	b2PolygonShape gameObject_shape;
@@ -188,10 +190,13 @@ void SceneApp::InitGameObject(float startX, float startY, float halfWidth, float
 	gameObject_body_->CreateFixture(&gameObject_fixture_def);
 
 	// update visuals from simulation data
-	gameObject_.UpdateFromSimulation(gameObject_body_);
+	newObstacle->UpdateFromSimulation(gameObject_body_);
 
 	// create a connection between the rigid body and GameObject
-	gameObject_body_->SetUserData(&gameObject_);
+	gameObject_body_->SetUserData(newObstacle);
+
+	obstacles_.push_back(newObstacle);
+	obstacle_bodys_.push_back(gameObject_body_);
 }
 
 void SceneApp::InitGround()
@@ -206,7 +211,7 @@ void SceneApp::InitGround()
 	// create a physics body
 	b2BodyDef body_def;
 	body_def.type = b2_staticBody;
-	body_def.position = b2Vec2(0.0f, -0.2f);
+	body_def.position = b2Vec2(0.0f, -3.5f);
 
 	ground_body_ = world_->CreateBody(&body_def);
 
@@ -274,7 +279,10 @@ void SceneApp::UpdateSimulation(float frame_time)
 
 	// update object visuals from simulation data
 	player_.UpdateFromSimulation(player_body_);
-	gameObject_.UpdateFromSimulation(gameObject_body_);
+	for (int i = 0; i < obstacles_.size(); i++) {
+		obstacles_.at(i)->UpdateFromSimulation(obstacle_bodys_.at(i));
+	}
+	//gameObject_.UpdateFromSimulation(gameObject_body_);
 
 	// don't have to update the ground visuals as it is static
 
@@ -317,10 +325,6 @@ void SceneApp::UpdateSimulation(float frame_time)
 				}
 			}
 
-			if (player)
-			{
-				player->DecrementHealth();
-			}
 		}
 
 		// Get next contact point
@@ -333,6 +337,11 @@ void SceneApp::UpdateSimulation(float frame_time)
 void SceneApp::FrontendInit()
 {
 	button_icon_ = CreateTextureFromPNG("playstation-cross-dark-icon.png", platform_);
+	Scroller_Bkgrd_ = CreateTextureFromPNG("clouds@2x.png", platform_);
+
+	// initialise the difficulty and score variables
+	difficulty = 1;
+	score = 0;
 }
 
 void SceneApp::FrontendRelease()
@@ -355,11 +364,11 @@ void SceneApp::FrontendUpdate(float frame_time)
 		JumperInit();
 	}
 
-	if (controller->buttons_pressed() & gef_SONY_CTRL_LEFT)
+	if (controller->buttons_pressed() & gef_SONY_CTRL_LEFT && difficulty > 1)
 	{
 		difficulty--;
 	}
-	if (controller->buttons_pressed()& gef_SONY_CTRL_RIGHT)
+	if (controller->buttons_pressed()& gef_SONY_CTRL_RIGHT && difficulty < 10)
 	{
 		difficulty++;
 	}
@@ -369,13 +378,22 @@ void SceneApp::FrontendUpdate(float frame_time)
 void SceneApp::FrontendRender()
 {
 	sprite_renderer_->Begin();
+	
+	// Render wall texture
+	gef::Sprite wall;
+	wall.set_texture(Scroller_Bkgrd_);
+	wall.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f, -0.99f));
+	wall.set_height(640.0f);
+	wall.set_width(1136.0f);
+	sprite_renderer_->DrawSprite(wall);
+	
 
 	// render "PRESS" text
 	font_->RenderText(
 		sprite_renderer_,
 		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
 		1.0f,
-		0xffffffff,
+		0xff595959,
 		gef::TJ_CENTRE,
 		"PRESS");
 
@@ -387,13 +405,12 @@ void SceneApp::FrontendRender()
 	button.set_width(32.0f);
 	sprite_renderer_->DrawSprite(button);
 
-
 	// render "TO START" text
 	font_->RenderText(
 		sprite_renderer_,
 		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f + 32.0f, -0.99f),
 		1.0f,
-		0xffffffff,
+		0xff595959,
 		gef::TJ_CENTRE,
 		"TO START");
 
@@ -402,9 +419,9 @@ void SceneApp::FrontendRender()
 		sprite_renderer_,
 		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f-100, -0.99f),
 		1.0f,
-		0xffffffff,
+		0xff595959,
 		gef::TJ_CENTRE,
-		"\n\nSelect a Difficulty (1 being easiest): %i", difficulty);
+		"\n\nSelect a Difficulty (1 being easiest): %i", (int)difficulty);
 
 
 	DrawHUD();
@@ -434,8 +451,11 @@ void SceneApp::JumperInit()
 	world_ = new b2World(gravity);
 
 	InitPlayer();
-	InitGameObject(10.0f, 0.5f, 0.5f, 0.5f);
+	//CreateObstacle(10.0f, 0.5f, 0.5f, 1.5f);
 	InitGround();
+
+	timer_ = new Timer();
+	timer_->set_timer(1);// +1000 / difficulty);
 
 	// load audio assets
 	if (audio_manager_)
@@ -478,11 +498,25 @@ void SceneApp::JumperRelease()
 	delete Scroller_Bkgrd_;
 	Scroller_Bkgrd_ = NULL;
 
+	delete timer_;
+	timer_ = NULL;
+
+	for (int i = 0; i < obstacles_.size(); i++) 
+	{
+		delete obstacles_.at(i);
+	}
+
+	obstacles_.clear();
+	obstacle_bodys_.clear();
+
 }
 
 void SceneApp::JumperUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
+
+	//increase the score the longer the player lives
+	score++;
 
 	// matrix to handle player transforms
 	gef::Matrix44 player_transform;
@@ -516,64 +550,16 @@ void SceneApp::JumperUpdate(float frame_time)
 	}
 	// End sound effect
 
-	// collision detection
-	// get the head of the contact list
-	b2Contact* contact = world_->GetContactList();
-	// get contact count
-	int contact_count = world_->GetContactCount();
-
-	for (int contact_num = 0; contact_num<contact_count; ++contact_num)
+	if (timer_->update(frame_time)) 
 	{
-		if (contact->IsTouching())
-		{
-			// get the colliding bodies
-			b2Body* bodyA = contact->GetFixtureA()->GetBody();
-			b2Body* bodyB = contact->GetFixtureB()->GetBody();
-
-			// DO COLLISION RESPONSE HERE
-			//end the game
-			/////////////////////////////////////ISSUES//////////////////////////////////////
-			//JumperRelease();
-			game_state_ = GAMEOVER;
-			GameOverInit();
-			//GameOverInit();
-			/*
-			if (bodyA->GetType() == b2_dynamicBody)
-			{
-				player_body_ = bodyA;
-				ground_body_ = bodyB;
-			}
-			else
-			{
-				ground_body_ = bodyA;
-				player_body_ = bodyB;
-			}
-			player_body_->ApplyForceToCenter(b2Vec2(0.0f, 200.0f), true);
-			*/
-		}
-
-		// Get next contact point
-		//contact = contact->GetNext();
+	 // rand 1/0  + 10*(rand()%2)
+		CreateObstacle(10.0f, -1.0f + 6.0f * (rand() % 2), 0.5f, 3.5f);
 	}
 
 
 	// update the simulation
 	UpdateSimulation(frame_time);
-	
-	// get to start menu
-	if (controller->buttons_pressed() & gef_SONY_CTRL_START)
-	{
-		JumperRelease();
-		game_state_ = FRONTEND;
-		FrontendInit();
-	}
 
-	if (controller->buttons_pressed() & gef_SONY_CTRL_SQUARE)
-	{
-		JumperRelease();
-		game_state_ = GAMEOVER;
-		GameOverInit();
-	}
 
 	// Player force inputs //
 	if (controller->buttons_down() & gef_SONY_CTRL_RIGHT)
@@ -602,21 +588,62 @@ void SceneApp::JumperUpdate(float frame_time)
 	}
 	// End Player Force inputs //
 
+	//increase the difficulty slowly over time
+	difficulty += 0.1f*frame_time;
 	// effectively teleports the gameobject difficulty/10 units to the left
-	gameObject_body_->SetTransform(b2Vec2((gameObject_body_->GetPosition().x) - ((float)difficulty/10), gameObject_body_->GetPosition().y), 0);
-	
-	/*
-	if (controller->buttons_down() & gef_SONY_CTRL_CIRCLE)
+	for (int i = 0; i < obstacle_bodys_.size(); i++)
 	{
-		// effectively teleports the gameobject 0.1 units to the right, while the circle button is down
-		gameObject_body_->SetTransform(b2Vec2((gameObject_body_->GetPosition().x) + 0.1f, gameObject_body_->GetPosition().y), 0);
-	}*/
+		obstacle_bodys_.at(i)->SetTransform(b2Vec2((obstacle_bodys_.at(i)->GetPosition().x) - ((float)difficulty / 10), obstacle_bodys_.at(i)->GetPosition().y), 0);
+	}
+
+	// collision detection
+	// get the head of the contact list
+	b2Contact* contact = world_->GetContactList();
+	// get contact count
+	int contact_count = world_->GetContactCount();
+
+	for (int contact_num = 0; contact_num<contact_count; ++contact_num)
+	{
+		if (contact->IsTouching())
+		{
+			// get the colliding bodies
+			b2Body* bodyA = contact->GetFixtureA()->GetBody();
+			b2Body* bodyB = contact->GetFixtureB()->GetBody();
+
+			// DO COLLISION RESPONSE HERE
+			//end the game
+			JumperRelease();
+			game_state_ = GAMEOVER;
+			GameOverInit();
+
+
+		}
+
+		// Get next contact point
+		//contact = contact->GetNext();
+	}
+	// get to start menu
+	if (controller->buttons_pressed() & gef_SONY_CTRL_START)
+	{
+		JumperRelease();
+		game_state_ = FRONTEND;
+		FrontendInit();
+	}
+
+	if (controller->buttons_pressed() & gef_SONY_CTRL_SQUARE)
+	{
+		JumperRelease();
+		game_state_ = GAMEOVER;
+		GameOverInit();
+	}
 
 }
 
 void SceneApp::JumperRender()
 {
 	sprite_renderer_->Begin();
+
+	
 
 	// Render wall texture
 	gef::Sprite wall;
@@ -625,6 +652,25 @@ void SceneApp::JumperRender()
 	wall.set_height(640.0f);
 	wall.set_width(1136.0f);
 	sprite_renderer_->DrawSprite(wall);
+	
+
+	// render "Score" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.75f, platform_.height()*0.15f, -0.99f),
+		1.0f,
+		0xff595959,
+		gef::TJ_CENTRE,
+		"SCORE: %i", score);
+
+	// render "Difficulty" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.25f, platform_.height()*0.15f, -0.99f),
+		1.0f,
+		0xff595959,
+		gef::TJ_CENTRE,
+		"DIFFICULTY: %i", (int)difficulty);
 	sprite_renderer_->End();
 
 	// Setup camera
@@ -656,7 +702,11 @@ void SceneApp::JumperRender()
 
 	// draw gameObject
 	renderer_3d_->set_override_material(&primitive_builder_->red_material());
-	renderer_3d_->DrawMesh(gameObject_);
+	for (int i = 0; i < obstacles_.size(); i++) 
+	{
+		renderer_3d_->DrawMesh(*obstacles_.at(i));
+	}
+	
 	renderer_3d_->set_override_material(NULL);
 	// draw player
 	renderer_3d_->set_override_material(&primitive_builder_->green_material());
@@ -713,7 +763,35 @@ void SceneApp::GameOverRender()
 	gameOverBkgrd.set_height(640.0f);
 	gameOverBkgrd.set_width(1136.0f);
 	sprite_renderer_->DrawSprite(gameOverBkgrd);
+
+	// render "Final Score" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.3f, -0.99f),
+		1.0f,
+		0xff595959,
+		gef::TJ_CENTRE,
+		"FINAL SCORE: %i w/ difficulty modifier", score*(int)difficulty);
+
+	// render "Score" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.75f, platform_.height()*0.15f, -0.99f),
+		1.0f,
+		0xff595959,
+		gef::TJ_CENTRE,
+		"SCORE: %i", score);
+
+	// render "Difficulty" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.25f, platform_.height()*0.15f, -0.99f),
+		1.0f,
+		0xff595959,
+		gef::TJ_CENTRE,
+		"DIFFICULTY %i", (int)difficulty);
 	sprite_renderer_->End();
+	
 	
 	
 }

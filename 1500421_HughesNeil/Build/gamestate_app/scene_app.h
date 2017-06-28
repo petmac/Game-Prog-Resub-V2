@@ -10,6 +10,8 @@
 #include <box2d/Box2D.h>
 #include "game_object.h"
 #include <vector>
+#include <stdlib.h>
+#include "Timer.h"
 
 // enum for game states
 enum GAMESTATE 
@@ -39,7 +41,7 @@ public:
 	void Render();
 private:
 	void InitPlayer();
-	void InitGameObject(float, float, float, float);
+	void CreateObstacle(float, float, float, float);
 	void InitGround();
 	void InitFont();
 	void CleanUpFont();
@@ -85,9 +87,12 @@ private:
 	b2Body* player_body_;
 	
 
-	// general game object variables, be it enemy or simple object
-	Player gameObject_;
-	b2Body* gameObject_body_;
+	// Obstacle Variables
+
+	std::vector<GameObject*> obstacles_;
+	std::vector<b2Body*> obstacle_bodys_;
+
+	Timer* timer_;
 
 	// ground variables
 	gef::Mesh* ground_mesh_;
@@ -99,7 +104,8 @@ private:
 	int sfx_voice_id_;
 
 	// difficulty variable
-	unsigned int difficulty;
+	float difficulty;
+	unsigned int score;
 
 	float fps_;
 
